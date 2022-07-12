@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -12,38 +13,38 @@ from sklearn.utils import validation
 logger = logging.getLogger(__name__)
 
 
-def _return_float_dtype(X, Y):
+def _return_float_dtype(x, y) -> Tuple[np.ndarray, np.ndarray, object]:
     """
     1. If dtype of X and Y is float32, then dtype float32 is returned.
     2. Else dtype float is returned.
     From: https://github.com/scikit-learn/scikit-learn/issues/5884
     """
-    if not issparse(X) and not isinstance(X, np.ndarray):
-        X = np.asarray(X)
+    if not issparse(x) and not isinstance(x, np.ndarray):
+        x = np.asarray(x)
 
-    if Y is None:
-        Y_dtype = X.dtype
-    elif not issparse(Y) and not isinstance(Y, np.ndarray):
-        Y = np.asarray(Y)
-        Y_dtype = Y.dtype
+    if y is None:
+        y_dtype = x.dtype
+    elif not issparse(y) and not isinstance(y, np.ndarray):
+        y = np.asarray(y)
+        y_dtype = y.dtype
     else:
-        Y_dtype = Y.dtype
+        y_dtype = y.dtype
 
-    if X.dtype == Y_dtype == np.float32:
+    if x.dtype == y_dtype == np.float32:
         dtype = np.float32
-    elif X.dtype == np.object and not issparse(X):
+    elif x.dtype == np.object and not issparse(x):
         dtype = np.float
-        for col in range(X.shape[1]):
-            if not np.issubdtype(type(X[0, col]), np.number):
+        for col in range(x.shape[1]):
+            if not np.issubdtype(type(x[0, col]), np.number):
                 dtype = np.object
                 break
     else:
         dtype = np.float
 
-    return X, Y, dtype
+    return x, y, dtype
 
 
-def check_pairwise_arrays(x: np.ndarray, y: np.ndarray, precomputed=False, dtype=None):
+def check_pairwise_arrays(x: np.ndarray, y: np.ndarray, precomputed=False, dtype=None) -> Tuple[np.ndarray, np.ndarray]:
     """
     From: https://github.com/scikit-learn/scikit-learn/issues/5884
     :param x: First array to compare to Y
@@ -67,6 +68,7 @@ def check_pairwise_arrays(x: np.ndarray, y: np.ndarray, precomputed=False, dtype
         x = validation.check_array(
             x, accept_sparse='csr', dtype=dtype,
             warn_on_dtype=warn_on_dtype, estimator=estimator)
+
         y = validation.check_array(
             y, accept_sparse='csr', dtype=dtype,
             warn_on_dtype=warn_on_dtype, estimator=estimator)
@@ -77,6 +79,7 @@ def check_pairwise_arrays(x: np.ndarray, y: np.ndarray, precomputed=False, dtype
                              "(n_queries, n_indexed). Got (%d, %d) "
                              "for %d indexed." %
                              (x.shape[0], x.shape[1], y.shape[0]))
+
     elif x.shape[1] != y.shape[1]:
         raise ValueError("Incompatible dimension for X and Y matrices: "
                          "X.shape[1] == %d while Y.shape[1] == %d" % (
@@ -117,8 +120,7 @@ def gower_distances(x, y=None, w=None, categorical_features=None):
 
     """
 
-    x, y = check_pairwise_arrays(x, y, dtype=(np.object, None)[issparse(x) or
-                                                               issparse(y)])
+    x, y = check_pairwise_arrays(x, y, dtype=(np.object, None)[issparse(x) or issparse(y)])
 
     rows, cols = x.shape
 
@@ -129,44 +131,43 @@ def gower_distances(x, y=None, w=None, categorical_features=None):
                 categorical_features.append(False)
             else:
                 categorical_features.append(True)
+
     # Calculates the normalized ranges and max values of numeric values
     ranges_of_numeric = [0.0] * cols
     max_of_numeric = [0.0] * cols
     for col in range(cols):
         if not categorical_features[col]:
-            max = None
-            min = None
             if issparse(x):
                 col_array = x.getcol(col)
-                max = col_array.max() + 0.0
-                min = col_array.min() + 0.0
+                max_val = col_array.max() + 0.0
+                min_val = col_array.min() + 0.0
             else:
                 col_array = x[:, col].astype(np.double)
-                max = np.nanmax(col_array)
-                min = np.nanmin(col_array)
+                max_val = np.nanmax(col_array)
+                min_val = np.nanmin(col_array)
 
-            if np.isnan(max):
-                max = 0.0
-            if np.isnan(min):
-                min = 0.0
-            max_of_numeric[col] = max
-            ranges_of_numeric[col] = (1 - min / max) if (max != 0) else 0.0
+            if np.isnan(max_val):
+                max_val = 0.0
+            if np.isnan(min_val):
+                min_val = 0.0
+            max_of_numeric[col] = max_val
+            ranges_of_numeric[col] = (1 - min_val / max_val) if (max_val != 0) else 0.0
 
     if w is None:
         w = [1] * cols
 
-    yrows, ycols = y.shape
+    y_rows, y_cols = y.shape
 
-    dm = np.zeros((rows, yrows), dtype=np.double)
+    dm = np.zeros((rows, y_rows), dtype=np.double)
 
     for i in range(0, rows):
         j_start = i
 
         # for non square results
-        if rows != yrows:
+        if rows != y_rows:
             j_start = 0
 
-        for j in range(j_start, yrows):
+        for j in range(j_start, y_rows):
             sum_sij = 0.0
             sum_wij = 0.0
             for col in range(cols):
@@ -194,7 +195,7 @@ def gower_distances(x, y=None, w=None, categorical_features=None):
 
             if sum_wij != 0:
                 dm[i, j] = (sum_sij / sum_wij)
-                if j < rows and i < yrows:
+                if j < rows and i < y_rows:
                     dm[j, i] = dm[i, j]
 
     return dm
@@ -205,7 +206,10 @@ def cramers_corrected_stat(column1, column2):
         uses correction from Bergsma and Wicher,
         Journal of the Korean Statistical Society 42 (2013): 323-328
         https://stackoverflow.com/questions/20892799/using-pandas-calculate-cramérs-coefficient-matrix
-    :param column1, column2: Columns of data to calculate Cramer's V
+
+    :param column1: Columns of data to calculate Cramer's V
+    :param column2: Columns of data to calculate Cramer's V
+
     :return: Cramer's V stat
 
     """
@@ -213,11 +217,11 @@ def cramers_corrected_stat(column1, column2):
     chi2 = ss.chi2_contingency(confusion_matrix, correction=False)[0]
     n = confusion_matrix.sum().sum()
     phi2 = chi2/n
-    r,k = confusion_matrix.shape
+    r, k = confusion_matrix.shape
     phi2corr = max(0, phi2 - ((k-1)*(r-1))/(n-1))
     rcorr = r - ((r-1)**2)/(n-1)
     kcorr = k - ((k-1)**2)/(n-1)
-    return np.sqrt(phi2corr / min( (kcorr-1), (rcorr-1)))
+    return np.sqrt(phi2corr / min((kcorr-1), (rcorr-1)))
 
 
 def run_cramer(data, na_treatment='pairwise_complete'):
@@ -225,7 +229,7 @@ def run_cramer(data, na_treatment='pairwise_complete'):
     Calculates Cramers V's distance matrix
     :param data: dataframe
     :param na_treatment: Either 'complete' or 'pairwise complete'
-    :param result: Either 'whole' or 'condensed'
+
     :return: distance metric
     """
 
@@ -248,15 +252,15 @@ def run_cramer(data, na_treatment='pairwise_complete'):
                 temp_data = temp_data.dropna()
 
             if temp_data.shape[0] == 0:
-                temp_CV = np.nan
+                temp_cv = np.nan
             else:
-                temp_CV = cramers_corrected_stat(temp_data[var1], temp_data[var2])
+                temp_cv = cramers_corrected_stat(temp_data[var1], temp_data[var2])
 
             # todo error handling
 
-            temp_results.iloc[item_1, item_2] = temp_CV
-            temp_results.iloc[item_2, item_1] = temp_CV
-            temp_condensed[counter] = temp_CV
+            temp_results.iloc[item_1, item_2] = temp_cv
+            temp_results.iloc[item_2, item_1] = temp_cv
+            temp_condensed[counter] = temp_cv
 
             counter = counter + 1
 
@@ -266,17 +270,19 @@ def run_cramer(data, na_treatment='pairwise_complete'):
 def categorical_hierarchical(pd_data, linkage_method="average", metric='cramer', na_treatment='pairwise_complete'):
     """
     :param pd_data: pandas dataset with only the variables to be used for clustering
-    :param linkage: One of 'single', 'complete', 'average', 'weighted', 'centroid', 'median', 'ward'. See
+    :param linkage_method: One of 'single', 'complete', 'average', 'weighted', 'centroid', 'median', 'ward'. See
     http://scipy.github.io/devdocs/generated/scipy.cluster.hierarchy.linkage.html
-    Also see: https://stats.stackexchange.com/questions/195446/choosing-the-right-linkage-method-for-hierarchical-clustering
+    Also see:
+    https://stats.stackexchange.com/questions/195446/choosing-the-right-linkage-method-for-hierarchical-clustering
     :param metric: currently only 'cramer' for adjusted cramer's v is supported
     :param na_treatment: Either 'complete' or 'pairwise complete'
+
     :return: clustering information, and dendrogram plot
     """
 
     if metric == 'cramer':
-        result_matrix, result_vector = run_cramer(pd_data, na_treatment = na_treatment)
-        result = linkage(1-result_vector, linkage_method)
+        result_matrix, result_vector = run_cramer(pd_data, na_treatment=na_treatment)
+        result = linkage(1 - result_vector, linkage_method)
         # Use 1 - Cramer as suggested in http://www.econ.upf.edu/~michael/stanford/maeb6.pdf
     else:
         raise ValueError("Currently only Cramer's V is available")
@@ -287,18 +293,19 @@ def categorical_hierarchical(pd_data, linkage_method="average", metric='cramer',
 def get_gower(x, categorical_vars=None, weight=None):
     """
     :param x: pandas dataframe with the variables for clustering
-    :param categorical_vars: list of names of categorical variables. If left as None, these will be automatically detected
+    :param categorical_vars: list of names of categorical variables.
+    If left as None, these will be automatically detected
     :param weight: optional weight variable (array-like, not a string)
     :return:
     """
 
     if categorical_vars:
         # Convert to true / false
-        categoricals = [var_name in categorical_vars for var_name in x.columns.values]
+        categories = [var_name in categorical_vars for var_name in x.columns.values]
     else:
-        categoricals = None
+        categories = None
 
-    d = gower_distances(x, w=weight, categorical_features=categoricals)
+    d = gower_distances(x, w=weight, categorical_features=categories)
 
     # Get a flattened upper triangular matrix
     num_var = len(x.columns)
@@ -316,15 +323,17 @@ def get_gower(x, categorical_vars=None, weight=None):
 def mixed_hierarchical(pd_data, categorical_vars=None, weight=None, linkage_method="average", metric='gower'):
     """
     :param pd_data: pandas dataset with only the variables to be used for clustering
-    :param categorical_vars: list of names of categorical variables. If left as None, these will be automatically detected.
+    :param categorical_vars: list of names of categorical variables.
+    If left as None, these will be automatically detected.
     Right now assumes that the categorical variables are passed in as strings ('cat','dog')
     if they are listed as numbers they will be treated as numeric values instead
-    :param linkage: One of 'single', 'complete', 'average', 'weighted', 'centroid', 'median', 'ward'. See
+    :param linkage_method: One of 'single', 'complete', 'average', 'weighted', 'centroid', 'median', 'ward'. See
     http://scipy.github.io/devdocs/generated/scipy.cluster.hierarchy.linkage.html
-    Also see: https://stats.stackexchange.com/questions/195446/choosing-the-right-linkage-method-for-hierarchical-clustering
+    Also see:
+    https://stats.stackexchange.com/questions/195446/choosing-the-right-linkage-method-for-hierarchical-clustering
     :param metric: currently only 'gower' for gower's distance is supported
     :param weight: currently only 'gower' for gower's distance is supported
-    :param linkage_method: currently only 'gower' for gower's distance is supported
+    # :param linkage_method: currently only 'gower' for gower's distance is supported
     :return: clustering information, and dendrogram plot
     """
 
@@ -337,13 +346,17 @@ def mixed_hierarchical(pd_data, categorical_vars=None, weight=None, linkage_meth
     return result
 
 
-def numerical_hierarchical(pd_data, linkage_method='single', metric='euclidean', minkowski_p = None, weight = None):
+def numerical_hierarchical(pd_data, linkage_method='single', metric='euclidean', minkowski_p=None, weight=None):
     """
     :param pd_data: pandas dataset with only the variables to be used for clustering
     :param linkage_method: One of 'single', 'complete', 'average', 'weighted', 'centroid', 'median', 'ward'. See
     http://scipy.github.io/devdocs/generated/scipy.cluster.hierarchy.linkage.html
-    Also see: https://stats.stackexchange.com/questions/195446/choosing-the-right-linkage-method-for-hierarchical-clustering
+    Also see:
+    https://stats.stackexchange.com/questions/195446/choosing-the-right-linkage-method-for-hierarchical-clustering
     :param metric: distance metric to use in the case that pd_data is a collection of observation vectors
+    :param weight:
+    :param minkowski_p: Minkwski P in case metric is minkowski or wminkowski
+
     :return: clustering information encoded as a linkage matrix
     """
     matrix_t = pd_data.values.transpose()
@@ -352,7 +365,7 @@ def numerical_hierarchical(pd_data, linkage_method='single', metric='euclidean',
         result = linkage(matrix_t, method=linkage_method, metric="euclidean")
     elif metric in ["correlation", "cityblock", "seuclidean", "sqeuclidean", "hamming", "jaccard",
                     "chebychev", "canberra", "braycurtis", "mahalanobis", "yule", "dice", "kulsinski",
-                    "rogerstanimoto", "russellrao", "sokalmichener" ,"sokalsneath"]:
+                    "rogerstanimoto", "russellrao", "sokalmichener", "sokalsneath"]:
 
         # Generate spatial distance function
         y = pdist(matrix_t, metric=metric)

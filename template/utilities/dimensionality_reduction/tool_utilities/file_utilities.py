@@ -1,10 +1,26 @@
 # Utilities for saving and reading parquet files, and converting between pandas and parquet
 
 import os
+import time
+from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+
+def export_plot(figure: plt.figure, prefix="figure", output_path: Path = Path.cwd(), **kwargs):
+    timestamp = time.strftime("%Y%m%d_%Hh%Mm%Ss", time.localtime())
+    file_name = f"{prefix}_{timestamp}.png"
+
+    if not output_path.is_dir():
+        os.makedirs(output_path, exist_ok=True)
+
+    figure.savefig(
+        output_path / file_name,
+        **kwargs
+    )
 
 
 def pd_save_as_pq(pd_data, save_path, save_name):
