@@ -6,6 +6,6 @@ repos:
         args: ['--maxkb=100000']
 
   - repo: https://github.com/ow-gryphon/gryphon-pre-commit-hooks
-    rev: v0.1.0
+    rev: 0.1.0
     hooks:
       - id: ignore-files
