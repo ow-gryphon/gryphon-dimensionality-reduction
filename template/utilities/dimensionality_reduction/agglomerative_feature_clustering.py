@@ -9,8 +9,8 @@ from matplotlib import pyplot as plt
 from scipy.cluster.hierarchy import dendrogram
 
 from .hierarchical_clustering import numerical_hierarchical, categorical_hierarchical, mixed_hierarchical
-from .tool_utilities import file_utilities
-from .tool_utilities import pre_processing
+from .utilities import file_utilities
+from .utilities import pre_processing
 
 logger = logging.getLogger(__name__)
 

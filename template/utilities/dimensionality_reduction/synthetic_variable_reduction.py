@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-from .tool_utilities.pre_processing import standardize_variables
-from .tool_utilities import file_utilities
+from .utilities import file_utilities
+from .utilities.pre_processing import standardize_variables
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +53,11 @@ def plot_explained_variance_ratio(result_dict: dict):
 class SyntheticVariableReduction:
     @staticmethod
     def pca(
-            data, variables, n_components,
-            standardize_vars=False,
-            generate_charts=False,
-            save_results_to_excel=False,
-            output_path=Path.cwd() / "outputs"
+        data, variables, n_components,
+        standardize_vars=False,
+        generate_charts=False,
+        save_results_to_excel=False,
+        output_path=Path.cwd() / "outputs"
     ):
 
         """
@@ -100,7 +100,7 @@ class SyntheticVariableReduction:
         explained_var_cs_df = pd.DataFrame(explained_var_cum_sum)
 
         list_of_pcs = []
-        for x in range(1, n_components+1):
+        for x in range(1, n_components + 1):
             list_of_pcs.append(f"PC_{x}")
 
         explained_var_cs_df["PCA_dim"] = list_of_pcs

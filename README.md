@@ -1,3 +1,4 @@
+# Dimensionality reduction template - Gryphon
 
 In the ./requirements.txt one should specify the dependencies between templates.
 
