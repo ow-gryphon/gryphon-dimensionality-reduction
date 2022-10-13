@@ -9,10 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-from .utilities import file_utilities
-from .utilities.pre_processing import standardize_variables
-
-logger = logging.getLogger(__name__)
+from .dim_reduct_utilities import standardize_variables, export_plot
 
 
 def to_excel(result_dict: dict, file_name: str = None, output_path=Path.cwd()):
@@ -36,8 +33,8 @@ def plot_explained_variance_ratio(result_dict: dict):
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
     ax.set_title("Explained variance ratio (cumulative)")
     ax.plot(
-        result_dict["plot data"][:, 1],
-        result_dict["plot data"][:, 0],
+        result_dict["explained_variance"]["PCA_dim"],
+        result_dict["explained_variance"]["Cumulative Variance"],
         marker='.',
         markersize=10
     )
@@ -50,84 +47,80 @@ def plot_explained_variance_ratio(result_dict: dict):
     return fig
 
 
-class SyntheticVariableReduction:
-    @staticmethod
-    def pca(
-        data, variables, n_components,
-        standardize_vars=False,
-        generate_charts=False,
-        save_results_to_excel=False,
-        output_path=Path.cwd() / "outputs"
-    ):
 
-        """
-        Reduce numerical variables using PCA
+def run_pca(
+    data, variables, n_components,
+    standardize_vars=False,
+    generate_charts=False,
+    save_results_to_excel=False,
+    output_path=Path.cwd() / "outputs"
+):
 
-        :param data: DataFrame
-        :param variables: variable names to be reduced
-        :param n_components: maximum number of components tested
-        :param generate_charts: Whether to generate charts or not
-        :param save_results_to_excel: Whether to save results to excel or not
-        :param standardize_vars: Boolean to standardize variables
-        :param output_path: Path to save excel and charts
+    """
+    Reduce numerical variables using PCA
 
-        :return: dictionary, warning_info
-        """
+    :param data: DataFrame
+    :param variables: variable names to be reduced
+    :param n_components: maximum number of components tested
+    :param generate_charts: Whether to generate charts or not
+    :param save_results_to_excel: Whether to save results to excel or not
+    :param standardize_vars: Boolean to standardize variables
+    :param output_path: Path to save excel and charts
 
-        dataset = data[variables]
+    :return: dictionary, warning_info
+    """
 
-        if standardize_vars:
-            dataset = standardize_variables(dataset)
+    dataset = data[variables].copy()
 
-        # ------------------------ Begin PCA ----------------------------
+    if standardize_vars:
+        dataset = standardize_variables(dataset)
 
-        print("Starting PCA algorithm")
-        pca = PCA(n_components=n_components)
-        pca_frame = pd.DataFrame(
-            pca.fit_transform(dataset),
-            columns=[
-                f'pca_dim_{idx}'
-                for idx in range(n_components)
-            ]
-        )
+    # ------------------------ Begin PCA ----------------------------
 
-        frame_with_pc = pd.concat([pca_frame, data], axis=1)
+    print("Starting PCA algorithm")
+    pca = PCA(n_components=n_components)
+    pca_frame = pd.DataFrame(
+        pca.fit_transform(dataset),
+        columns=[
+            f'pca_dim_{idx}'
+            for idx in range(n_components)
+        ]
+    )
 
-        explained_var = pca.explained_variance_ratio_
-        explained_var_cum_sum = explained_var.cumsum()
-        total_var_explained = explained_var.sum()
+    frame_with_pc = pd.concat([pca_frame, data], axis=1)
 
-        explained_var_cs_df = pd.DataFrame(explained_var_cum_sum)
+    explained_var = pca.explained_variance_ratio_
+    explained_var_cum_sum = explained_var.cumsum()
+    total_var_explained = explained_var.sum()
 
-        list_of_pcs = []
-        for x in range(1, n_components + 1):
-            list_of_pcs.append(f"PC_{x}")
+    explained_var_cs_df = pd.DataFrame({"Cumulative Variance": explained_var_cum_sum,
+                                        "Marginal Variance": np.diff(np.array([0] + list(explained_var_cum_sum)))})
 
-        explained_var_cs_df["PCA_dim"] = list_of_pcs
+    list_of_pcs = []
+    for x in range(1, n_components + 1):
+        list_of_pcs.append(f"PC_{x}")
 
-        # projection of features in the lower space
-        hor_dim = len(variables)
-        vert_dim = hor_dim
-        res = pd.DataFrame(pca.transform(np.eye(hor_dim, vert_dim)), index=list(dataset))
+    explained_var_cs_df["PCA_dim"] = list_of_pcs
 
-        logger.info('Ending synthetic variable reductions')
+    # projection of features in the lower space
+    hor_dim = len(variables)
+    vert_dim = hor_dim
+    res = pca.transform(pd.DataFrame(np.eye(hor_dim, vert_dim), columns=dataset.columns))
 
-        output = dict()
-        output["data"] = frame_with_pc
-        output["model"] = pca
-        output['explained_variance'] = explained_var_cs_df
-        output['components'] = res
-        output["model_type"] = "Reduction Synthetic"
-        output["total_explained_variance"] = total_var_explained
-        output["plot data"] = np.array(explained_var_cs_df.values)
-        output["plot_type"] = "PCA"
+    output = dict()
+    output["data"] = frame_with_pc
+    output["model"] = pca
+    output['explained_variance'] = explained_var_cs_df
+    output['components'] = res
+    output["model_type"] = "Reduction Synthetic"
+    output["total_explained_variance"] = total_var_explained
 
-        if save_results_to_excel:
-            print("Saving PCA results")
-            to_excel(output, output_path=output_path)
+    if save_results_to_excel:
+        print("Saving PCA results")
+        to_excel(output, output_path=output_path)
 
-        if generate_charts:
-            fig = plot_explained_variance_ratio(output)
-            file_utilities.export_plot(figure=fig, prefix="explained_variance", output_path=output_path)
+    if generate_charts:
+        fig = plot_explained_variance_ratio(output)
+        export_plot(figure=fig, prefix="explained_variance", output_path=output_path)
 
-        return output
+    return output

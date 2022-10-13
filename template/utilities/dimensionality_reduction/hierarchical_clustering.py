@@ -10,8 +10,6 @@ from scipy.sparse import issparse
 from scipy.spatial.distance import pdist
 from sklearn.utils import validation
 
-logger = logging.getLogger(__name__)
-
 
 def _return_float_dtype(x, y) -> Tuple[np.ndarray, np.ndarray, object]:
     """
