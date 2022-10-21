@@ -4,7 +4,7 @@
     "dependencies": [],
 
     "keywords": [],
-    "methodology": ["Data Exploration", "Classification", "Regression", "Clustering"],
+    "methodology": ["Data exploration and transformation", "Classification", "Regression", "Clustering"],
     "topic": [],
 
     "description": "Dimensionality reduction tools and samples.",
