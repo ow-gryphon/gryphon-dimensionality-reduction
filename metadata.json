@@ -1,23 +1,17 @@
 {
     "display_name": "Dimensionality reduction",
     "command": "generate",
-    "dependencies": ["notebook==6.5.4", 
-	             "qtconsole==5.4.2", 
-		     "jupyter-console==6.6.3",
-		     "nbconvert==7.3.1",
-		     "ipykernel==6.22.0",
-		     "ipywidgets==8.0.6",
-		     "pandas",
+    "dependencies": ["pandas",
 		     "matplotlib",
 		     "scipy",
 		     "scikit-learn",
 		     "openpyxl"],
 
-    "keywords": [],
+    "keywords": ["PCA", "Variable clustering"],
     "methodology": ["Data exploration and transformation", "Clustering", "Clustering and Factor Analysis"],
     "topic": [],
 
-    "description": "Dimensionality reduction tools and samples.",
+    "description": "Dimensionality reduction tools such as PCA and hierarchical variable clustering.",
     "author": "Daniel Wang and Vittor Pereira",
     "author_email": "daniel.wang@oliverwyman.com",
     "read_more_link": "https://github.com/ow-gryphon/gryphon-dimensionality-reduction"
